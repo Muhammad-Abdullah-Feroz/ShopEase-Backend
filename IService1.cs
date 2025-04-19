@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
+using System.Drawing.Imaging;
 using System.Runtime.Serialization;
 using System.ServiceModel;
 using System.ServiceModel.Web;
@@ -14,7 +16,7 @@ namespace ShopEase_Backend
     {
 
         [OperationContract]
-        void signup(string name, string email, string password, string role);
+        string signup(string name, string email, string password, string role);
 
         [OperationContract]
         User login(string email, string password);
@@ -22,14 +24,14 @@ namespace ShopEase_Backend
         [OperationContract]
         void updateUser(string email, string name, string password, string role);
 
-        [OperationContract]
-        List<Product> getProducts();
+        //[OperationContract]
+        //List<Product> getProducts();
+
+        //[OperationContract]
+        //Product GetProduct(string name);
 
         [OperationContract]
-        Product GetProduct(string name);
-
-        [OperationContract]
-        void addProduct(string name, string description, string category, string price, string image, string seller, string rating);
+        string addProduct(string name, string description, decimal price, byte[] imageData, int sellerID, int rating, int quantity, bool rentable, decimal price_per_day);
 
         [OperationContract]
         bool deleteProduct(string name);

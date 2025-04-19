@@ -9,13 +9,15 @@ namespace ShopEase_Backend
 {
     public class User
     {
+        public string id { get; set; }
         public string email { get; set; }
         public string password { get; set; }
         public string name { get; set; }
         public string role { get; set; }
 
-        public void setUser(string email, string password, string name, string role)
+        public void setUser(string id, string email, string password, string name, string role)
         {
+            this.id = id;
             this.email = email;
             this.password = password;
             this.name = name;
