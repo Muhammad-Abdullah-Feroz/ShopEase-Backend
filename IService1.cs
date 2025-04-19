@@ -14,8 +14,31 @@ namespace ShopEase_Backend
     {
 
         [OperationContract]
-        string GetData(int value);
+        void signup(string name, string email, string password, string role);
 
+        [OperationContract]
+        User login(string email, string password);
+
+        [OperationContract]
+        void updateUser(string email, string name, string password, string role);
+
+        [OperationContract]
+        List<Product> getProducts();
+
+        [OperationContract]
+        Product GetProduct(string name);
+
+        [OperationContract]
+        void addProduct(string name, string description, string category, string price, string image, string seller, string rating);
+
+        [OperationContract]
+        bool deleteProduct(string name);
+
+        [OperationContract]
+        void addToCart(string email, string product, int count);
+        [OperationContract]
+        string GetData(int value);
+        
         [OperationContract]
         CompositeType GetDataUsingDataContract(CompositeType composite);
 

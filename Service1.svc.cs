@@ -182,7 +182,23 @@ namespace ShopEase_Backend
             }
         }
 
-        
+        public void addToCart(string email, string product, int count)
+        {
+            string ConnectionString = "Connection String";
+            using (SqlConnection connection = new SqlConnection(ConnectionString))
+            {
+                string query = "INSERT INTO Cart (Email, Product, count) VALUES (@Email , @product, @count )";
+                using (SqlCommand command = new SqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@Email", email);
+                    command.Parameters.AddWithValue("@Product", product);
+                    command.Parameters.AddWithValue("@count", count);
+                    connection.Open();
+                    command.ExecuteNonQuery();
+                }
+            }
+        }
+
 
 
 
