@@ -8,13 +8,15 @@ namespace ShopEase_Backend
 {
     public class Product
     {
-        public string name { get; set; }
-        public string description { get; set; }
-        public double price { get; set; }
-        public Image image { get; set; }
-        public int rating { get; set; }
-        public int quantity { get; set; }
-        public bool is_rentable { get; set; }
-        public string seller { get; set; }
+        public int ProductId { get; set; }
+        public string Name { get; set; }
+        public string Description { get; set; }
+        public decimal Price { get; set; }
+        public int Quantity { get; set; }
+        public bool IsForRent { get; set; }
+        public decimal PerDayPrice { get; set; }
+        //public Image Image { get; set; }
     }
+
+
 }

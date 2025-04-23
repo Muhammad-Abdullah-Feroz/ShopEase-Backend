@@ -11,6 +11,7 @@ using MySql.Data.MySqlClient;
 using System.Xml.Linq;
 using System.Drawing;
 using System.IO;
+using Org.BouncyCastle.Utilities;
 
 namespace ShopEase_Backend
 {
@@ -18,6 +19,7 @@ namespace ShopEase_Backend
     // NOTE: In order to launch WCF Test Client for testing this service, please select Service1.svc or Service1.svc.cs at the Solution Explorer and start debugging.
     public class Service1 : IService1
     {
+
         public string signup(string name, string email, string password, string role)
         {
             string connectionString = "server=localhost;uid=root;pwd=password;database=Shopease;";
@@ -60,7 +62,6 @@ namespace ShopEase_Backend
             }
         }
 
-
         public User login(string email,  string password)
         {
             string connectionString = "server=localhost;uid=root;pwd=password;database=Shopease;";
@@ -98,52 +99,204 @@ namespace ShopEase_Backend
 
         }
 
-        public void updateUser(string email, string name, string password, string role)
+        public bool ResetPassword(string id, string password)
         {
-            string connectionString = "Data Source=DESKTOP-8G0F3Q1;Initial Catalog=ShopEase;Integrated Security=True";
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            string connectionString = "server=localhost;uid=root;pwd=password;database=Shopease;";
+
+            using (MySqlConnection connection = new MySqlConnection(connectionString))
             {
-                string query = "UPDATE Users SET Name = @Name, Password = @Password, Role = @Role WHERE Email = @Email";
-                using (SqlCommand command = new SqlCommand(query, connection))
+                string query = "UPDATE Users SET password = @Password WHERE user_id = @UserId";
+
+                using (MySqlCommand command = new MySqlCommand(query, connection))
                 {
-                    command.Parameters.AddWithValue("@Name", name);
                     command.Parameters.AddWithValue("@Password", password);
-                    command.Parameters.AddWithValue("@Role", role);
-                    command.Parameters.AddWithValue("@Email", email);
+                    command.Parameters.AddWithValue("@UserId", id);
+
                     connection.Open();
-                    command.ExecuteNonQuery();
+                    int rowsAffected = command.ExecuteNonQuery();
+
+                    return rowsAffected > 0;
                 }
             }
         }
 
-        //public List<Product> getProducts()
-        //{
-        //    List<Product> productList = new List<Product>();
+        public bool add_user_image(int userId, byte[] image)
+        {
+            string connectionString = "server=localhost;uid=root;pwd=password;database=Shopease;";
 
-        //    string connectionString = "Data Source=DESKTOP-8G0F3Q1;Initial Catalog=ShopEase;Integrated Security=True";
-        //    using (SqlConnection connection = new SqlConnection(connectionString))
-        //    {
-        //        string query = "SELECT * FROM Products";
-        //        using (SqlCommand command = new SqlCommand(query, connection))
-        //        {
-        //            connection.Open();
-        //            SqlDataReader reader = command.ExecuteReader();
-        //            while (reader.Read())
-        //            {
-        //                Product product = new Product();
-        //                product.name = reader["Name"].ToString();
-        //                product.description = reader["Description"].ToString();
-        //                product.category = reader["Category"].ToString();
-        //                product.price = reader["Price"].ToString();
-        //                product.image = reader["Image"].ToString();
-        //                product.seller = reader["Seller"].ToString();
-        //                product.rating = reader["Rating"].ToString();
-        //                productList.Add(product);
-        //            }
-        //        }
-        //    }
-        //    return productList;
-        //}
+            using (MySqlConnection connection = new MySqlConnection(connectionString))
+            {
+                string query = "UPDATE Users SET image = @Image WHERE user_id = @UserId";
+
+                using (MySqlCommand command = new MySqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@Image", image);
+                    command.Parameters.AddWithValue("@UserId", userId);
+
+                    connection.Open();
+                    int rowsAffected = command.ExecuteNonQuery();
+                    return rowsAffected > 0; // If at least 1 row updated, return true
+                }
+            }
+        }
+
+        public bool Add_user(string name, string email, string password, string role, byte[] image)
+        {
+            string connectionString = "server=localhost;uid=root;pwd=password;database=Shopease;";
+
+            using (MySqlConnection connection = new MySqlConnection(connectionString))
+            {
+                string query = @"INSERT INTO Users (name, email_or_phone, password, role, image)
+                         VALUES (@Name, @Email, @Password, @Role, @Image)";
+
+                using (MySqlCommand command = new MySqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@Name", name);
+                    command.Parameters.AddWithValue("@Email", email);
+                    command.Parameters.AddWithValue("@Password", password);
+                    command.Parameters.AddWithValue("@Role", role);
+                    command.Parameters.AddWithValue("@Image", image ?? (object)DBNull.Value); 
+
+                    connection.Open();
+                    int rowsAffected = command.ExecuteNonQuery();
+                    return rowsAffected > 0;
+                }
+            }
+        }
+
+        public List<User> GetUsers()
+        {
+            List<User> users = new List<User>();
+            string connectionString = "server=localhost;uid=root;pwd=password;database=Shopease;";
+            using (MySqlConnection connection = new MySqlConnection(connectionString))
+            {
+                string query = "SELECT * FROM Users";
+                using (MySqlCommand command = new MySqlCommand(query, connection))
+                {
+                    connection.Open();
+                    using (MySqlDataReader reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            User user = new User();
+                            user.id = reader["user_id"].ToString();
+                            user.email = reader["email_or_phone"].ToString();
+                            user.password = reader["password"].ToString();
+                            user.name = reader["name"].ToString();
+                            user.role = reader["role"].ToString();
+                            users.Add(user);
+                        }
+                    }
+                }
+            }
+            return users;
+        }
+
+        public byte[] get_dp(string id)
+        {
+            string connectionString = "server=localhost;uid=root;pwd=password;database=Shopease;";
+            using (MySqlConnection connection = new MySqlConnection(connectionString))
+            {
+                string query = "SELECT image FROM Users WHERE user_id = @UserId";
+                using (MySqlCommand command = new MySqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@UserId", id);
+                    connection.Open();
+                    object result = command.ExecuteScalar();
+                    if (result != DBNull.Value && result != null)
+                    {
+                        return (byte[])result;
+                    }
+                }
+            }
+            return null;
+        }
+
+        public List<Product> GetSellerProducts(int sellerId)
+        {
+            List<Product> products = new List<Product>();
+            string connectionString = "server=localhost;uid=root;pwd=password;database=Shopease;";
+
+            using (MySqlConnection connection = new MySqlConnection(connectionString))
+            {
+                string query = "SELECT product_id, name, description, price, quantity, is_for_rent, per_day_price FROM Products WHERE seller_id = @SellerId";
+                using (MySqlCommand command = new MySqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@SellerId", sellerId);
+                    connection.Open();
+                    using (MySqlDataReader reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            Product product = new Product();
+                            product.ProductId = Convert.ToInt32(reader["product_id"]);
+                            product.Name = reader["name"].ToString();
+                            product.Description = reader["description"].ToString();
+                            product.Price = Convert.ToDecimal(reader["price"]);
+                            product.Quantity = Convert.ToInt32(reader["quantity"]);
+                            product.IsForRent = Convert.ToBoolean(reader["is_for_rent"]);
+                            product.PerDayPrice = reader["per_day_price"] != DBNull.Value ? Convert.ToDecimal(reader["per_day_price"]) : 0;
+
+                            //if (reader["image"] != DBNull.Value)
+                            //{
+                            //    byte[] imageBytes = (byte[])reader["image"];
+                            //    using (MemoryStream ms = new MemoryStream(imageBytes))
+                            //    {
+                            //        product.Image = Image.FromStream(ms);
+                            //    }
+                            //}
+
+                            products.Add(product);
+                        }
+                    }
+                }
+            }
+
+            return products;
+        }
+
+        public bool UpdateProduct(int productId, string name, string description, decimal price, int quantity, bool isForRent, decimal? perDayPrice)
+        {
+            string connectionString = "server=localhost;uid=root;pwd=password;database=Shopease;";
+            bool success = false;
+
+            using (MySqlConnection connection = new MySqlConnection(connectionString))
+            {
+                string query = @"
+                UPDATE Products 
+                SET 
+                name = @Name,
+                description = @Description,
+                price = @Price,
+                quantity = @Quantity,
+                is_for_rent = @IsForRent,
+                per_day_price = @PerDayPrice
+                WHERE product_id = @ProductId";
+
+                using (MySqlCommand command = new MySqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@Name", name);
+                    command.Parameters.AddWithValue("@Description", description);
+                    command.Parameters.AddWithValue("@Price", price);
+                    command.Parameters.AddWithValue("@Quantity", quantity);
+                    command.Parameters.AddWithValue("@IsForRent", isForRent);
+
+                    if (perDayPrice.HasValue)
+                        command.Parameters.AddWithValue("@PerDayPrice", perDayPrice.Value);
+                    else
+                        command.Parameters.AddWithValue("@PerDayPrice", DBNull.Value);
+
+                    command.Parameters.AddWithValue("@ProductId", productId);
+
+                    connection.Open();
+                    int rowsAffected = command.ExecuteNonQuery();
+                    success = rowsAffected > 0;
+                }
+            }
+
+            return success;
+        }
+
 
         //public Product GetProduct(string name)
         //{
@@ -217,21 +370,63 @@ namespace ShopEase_Backend
         }
 
 
-        public bool deleteProduct(string name)
+        public bool deleteProduct(string id)
         {
-            string connectionString = "Data Source=DESKTOP-8G0F3Q1;Initial Catalog=ShopEase;Integrated Security=True";
+            string connectionString = "server=localhost;uid=root;pwd=password;database=Shopease;";
             using (SqlConnection connection = new SqlConnection(connectionString))
             {
-                string query = "DELETE FROM Products WHERE Name = @Name";
+                string query = "DELETE FROM Products WHERE product_id = @ProductId";
                 using (SqlCommand command = new SqlCommand(query, connection))
                 {
-                    command.Parameters.AddWithValue("@Name", name);
+                    command.Parameters.AddWithValue("@ProductId", id);
                     connection.Open();
                     int rowsAffected = command.ExecuteNonQuery();
                     return rowsAffected > 0;
                 }
             }
         }
+
+        public List<Order> GetOrders(int sellerId)
+        {
+            List<Order> orders = new List<Order>();
+            string connectionString = "server=localhost;uid=root;pwd=password;database=Shopease;";
+
+            using (MySqlConnection connection = new MySqlConnection(connectionString))
+            {
+                string query = @"SELECT o.order_id, o.product_id, o.buyer_id, o.quantity, o.total_price, 
+                                o.payment_method, o.status, o.courier_tracking_id
+                         FROM Orders o
+                         JOIN Products p ON o.product_id = p.product_id
+                         WHERE p.seller_id = @SellerId";
+
+                using (MySqlCommand command = new MySqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@SellerId", sellerId);
+                    connection.Open();
+
+                    using (MySqlDataReader reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            Order order = new Order();
+                            order.OrderId = Convert.ToInt32(reader["order_id"]);
+                            order.ProductId = Convert.ToInt32(reader["product_id"]);
+                            order.BuyerId = Convert.ToInt32(reader["buyer_id"]);
+                            order.Quantity = Convert.ToInt32(reader["quantity"]);
+                            order.TotalPrice = Convert.ToDecimal(reader["total_price"]);
+                            order.PaymentMethod = reader["payment_method"].ToString();
+                            order.Status = reader["status"].ToString();
+                            order.CourierTrackingId = reader["courier_tracking_id"]?.ToString();
+
+                            orders.Add(order);
+                        }
+                    }
+                }
+            }
+
+            return orders;
+        }
+
 
         public void addToCart(string email, string product, int count)
         {

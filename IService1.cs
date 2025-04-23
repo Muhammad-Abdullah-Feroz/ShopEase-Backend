@@ -7,6 +7,7 @@ using System.Runtime.Serialization;
 using System.ServiceModel;
 using System.ServiceModel.Web;
 using System.Text;
+using Org.BouncyCastle.Utilities;
 
 namespace ShopEase_Backend
 {
@@ -22,10 +23,23 @@ namespace ShopEase_Backend
         User login(string email, string password);
 
         [OperationContract]
-        void updateUser(string email, string name, string password, string role);
+        bool ResetPassword(string id, string password);
 
-        //[OperationContract]
-        //List<Product> getProducts();
+        [OperationContract]
+        bool add_user_image(int userId, byte[] image);
+        [OperationContract]
+
+        bool Add_user(string name, string email, string password, string role, byte[] image);
+        [OperationContract]
+
+        byte[] get_dp(string id);
+
+        [OperationContract]
+        List<Product> GetSellerProducts(int sellerId);
+        [OperationContract]
+        bool UpdateProduct(int productId, string name, string description, decimal price, int quantity, bool isForRent, decimal? perDayPrice);
+        [OperationContract]
+        List<Order> GetOrders(int sellerId);
 
         //[OperationContract]
         //Product GetProduct(string name);
@@ -34,7 +48,7 @@ namespace ShopEase_Backend
         string addProduct(string name, string description, decimal price, byte[] imageData, int sellerID, int rating, int quantity, bool rentable, decimal price_per_day);
 
         [OperationContract]
-        bool deleteProduct(string name);
+        bool deleteProduct(string id);
 
         [OperationContract]
         void addToCart(string email, string product, int count);
