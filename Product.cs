@@ -9,13 +9,14 @@ namespace ShopEase_Backend
     public class Product
     {
         public int ProductId { get; set; }
+        public string seller_name { get; set; }
         public string Name { get; set; }
         public string Description { get; set; }
         public decimal Price { get; set; }
         public int Quantity { get; set; }
         public bool IsForRent { get; set; }
         public decimal PerDayPrice { get; set; }
-        //public Image Image { get; set; }
+        public byte[] image { get; set; }
     }
 
 

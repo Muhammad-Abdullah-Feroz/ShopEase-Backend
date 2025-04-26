@@ -24,34 +24,47 @@ namespace ShopEase_Backend
 
         [OperationContract]
         bool ResetPassword(string id, string password);
-
         [OperationContract]
         bool add_user_image(int userId, byte[] image);
         [OperationContract]
-
         bool Add_user(string name, string email, string password, string role, byte[] image);
         [OperationContract]
-
+        List<User> GetUsers();
+        [OperationContract]
+        bool deleteUser(string id);
+        [OperationContract]
         byte[] get_dp(string id);
 
         [OperationContract]
+        List<Product> GetProducts();
+        [OperationContract]
         List<Product> GetSellerProducts(int sellerId);
+        [OperationContract]
+        List<Product> GetProductsForUser();
+        [OperationContract]
+        int getProductRatings(int productId);
         [OperationContract]
         bool UpdateProduct(int productId, string name, string description, decimal price, int quantity, bool isForRent, decimal? perDayPrice);
         [OperationContract]
         List<Order> GetOrders(int sellerId);
-
-        //[OperationContract]
-        //Product GetProduct(string name);
-
         [OperationContract]
         string addProduct(string name, string description, decimal price, byte[] imageData, int sellerID, int rating, int quantity, bool rentable, decimal price_per_day);
-
         [OperationContract]
         bool deleteProduct(string id);
 
         [OperationContract]
-        void addToCart(string email, string product, int count);
+        bool AddProductToCart(int buyerId, int productId);
+        [OperationContract]
+        List<cart_item> GetCartItemsForBuyer(int buyerId);
+        [OperationContract]
+        //void addToCart(string email, string product, int count);
+        //[OperationContract]
+        string PlaceOrderForBuyOnly(int buyerId, string address, string phoneNumber, string paymentMethod, string cardNo);
+        [OperationContract]
+
+        List<UserOrderHistory> GetUserOrderHistory(int buyerId);
+        [OperationContract]
+        string RentSingleProductFromCart(int buyerId, int productId, int rentDays, string address, string phoneNumber, string paymentMethod, string cardNo);
         [OperationContract]
         string GetData(int value);
         
