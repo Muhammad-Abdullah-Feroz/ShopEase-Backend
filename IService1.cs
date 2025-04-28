@@ -57,8 +57,6 @@ namespace ShopEase_Backend
         [OperationContract]
         List<cart_item> GetCartItemsForBuyer(int buyerId);
         [OperationContract]
-        //void addToCart(string email, string product, int count);
-        //[OperationContract]
         string PlaceOrderForBuyOnly(int buyerId, string address, string phoneNumber, string paymentMethod, string cardNo);
         [OperationContract]
 
@@ -66,8 +64,29 @@ namespace ShopEase_Backend
         [OperationContract]
         string RentSingleProductFromCart(int buyerId, int productId, int rentDays, string address, string phoneNumber, string paymentMethod, string cardNo);
         [OperationContract]
+
+        string DispatchOrder(int orderId, string trackingNumber, string status);
+
+        [OperationContract]
         string GetData(int value);
-        
+        [OperationContract]
+        string AddReview(int buyerId, int productId, int rating, string comment);
+        [OperationContract]
+        List<Product> GetProductsForReview(int buyerId);
+        [OperationContract]
+        List<Review> GetBuyerReviews(int buyerId);
+        [OperationContract]
+        string EditReview(int reviewId, int newRating, string newComment);
+        [OperationContract]
+        string DeleteReview(int reviewId);
+        [OperationContract]
+        List<Review> GetReviews();
+        [OperationContract]
+        List<Review> GetSellerProductReviews(int sellerId);
+        [OperationContract]
+        string GetTrackingNumberOrStatus(int orderId);
+
+
         [OperationContract]
         CompositeType GetDataUsingDataContract(CompositeType composite);
 

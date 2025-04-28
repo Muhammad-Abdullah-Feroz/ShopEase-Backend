@@ -464,7 +464,6 @@ namespace ShopEase_Backend
             return products;
         }
 
-
         public int getProductRatings(int productId)
         {
             string connectionString = "server=localhost;uid=root;pwd=password;database=Shopease;";
@@ -484,6 +483,7 @@ namespace ShopEase_Backend
             }
             return 0;
         }
+       
         public bool deleteProduct(string id)
         {
             string connectionString = "server=localhost;uid=root;pwd=password;database=Shopease;";
@@ -548,7 +548,6 @@ namespace ShopEase_Backend
 
             return false;
         }
-
 
         public List<cart_item> GetCartItemsForBuyer(int buyerId)
         {
@@ -824,14 +823,16 @@ namespace ShopEase_Backend
 
         public List<UserOrderHistory> GetUserOrderHistory(int buyerId)
         {
-            List<UserOrderHistory> history = new List<UserOrderHistory>();
-
-            using (MySqlConnection con = new MySqlConnection("your_mysql_connection_string_here"))
+            try
             {
-                string query = @"
-                                SELECT 
+                List<UserOrderHistory> history = new List<UserOrderHistory>();
+
+                using (MySqlConnection con = new MySqlConnection("server=localhost;uid=root;pwd=password;database=Shopease;"))
+                {
+                    string query = @"
+                SELECT 
                     o.order_id,
-                    p.name,
+                    p.name AS product_name,
                     oi.quantity,
                     o.status,
                     oi.is_rented
@@ -844,30 +845,68 @@ namespace ShopEase_Backend
                 WHERE 
                     o.buyer_id = @buyerId;";
 
-                MySqlCommand cmd = new MySqlCommand(query, con);
-                cmd.Parameters.AddWithValue("@buyerId", buyerId);
+                    MySqlCommand cmd = new MySqlCommand(query, con);
+                    cmd.Parameters.AddWithValue("@buyerId", buyerId);
 
-                con.Open();
-                using (MySqlDataReader reader = cmd.ExecuteReader())
-                {
-                    while (reader.Read())
+                    con.Open();
+                    using (MySqlDataReader reader = cmd.ExecuteReader())
                     {
-                        history.Add(new UserOrderHistory
+                        while (reader.Read())
                         {
-                            OrderId = reader.GetInt32("order_id"),
-                            ProductName = reader.GetString("product_name"),
-                            Quantity = reader.GetInt32("quantity"),
-                            Status = reader.GetString("status"),
-                            Type = reader.GetBoolean("is_rented") ? "Rented" : "Bought"
-                        });
+                            history.Add(new UserOrderHistory
+                            {
+                                OrderId = reader.GetInt32("order_id"),
+                                ProductName = reader.GetString("product_name"),
+                                Quantity = reader.GetInt32("quantity"),
+                                Status = reader.GetString("status"),
+                                Type = reader.GetBoolean("is_rented") ? "Rented" : "Bought"
+                            });
+                        }
+                    }
+                }
+
+                return history;
+            }
+            catch (Exception ex)
+            {
+                throw new FaultException($"Internal Server Error: {ex.Message}");
+            }
+        }
+
+        public string GetTrackingNumberOrStatus(int orderId)
+        {
+            string connectionString = "server=localhost;uid=root;pwd=password;database=Shopease;";
+            using (MySqlConnection connection = new MySqlConnection(connectionString))
+            {
+                string query = @"
+                            SELECT 
+                    tracking_number, 
+                    status 
+                FROM 
+                    orders
+                WHERE
+                    order_id = @OrderId;";
+
+                using (MySqlCommand command = new MySqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@OrderId", orderId);
+                    connection.Open();
+
+                    using (MySqlDataReader reader = command.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            string trackingNumber = reader["courier_tracking_id"] as string;
+                            string status = reader["status"].ToString();
+
+                            return string.IsNullOrEmpty(trackingNumber) ? status : trackingNumber;
+                        }
                     }
                 }
             }
 
-            return history;
+            return "Order not found";
         }
-
-     
 
         public List<Order> GetOrders(int sellerId)
         {
@@ -876,11 +915,24 @@ namespace ShopEase_Backend
 
             using (MySqlConnection connection = new MySqlConnection(connectionString))
             {
-                string query = @"SELECT o.order_id, o.product_id, o.buyer_id, o.quantity, o.total_price, 
-                                o.payment_method, o.status, o.courier_tracking_id
-                         FROM Orders o
-                         JOIN Products p ON o.product_id = p.product_id
-                         WHERE p.seller_id = @SellerId";
+                string query = @"
+            SELECT 
+                o.order_id,
+                oi.product_id,
+                o.buyer_id,
+                oi.quantity,
+                (oi.quantity * oi.price_per_item) AS total_price,
+                o.payment_method,
+                o.status,
+                o.tracking_number
+            FROM 
+                orders o
+            JOIN 
+                order_items oi ON o.order_id = oi.order_id
+            JOIN 
+                products p ON oi.product_id = p.product_id
+            WHERE 
+                p.seller_id = @SellerId;";
 
                 using (MySqlCommand command = new MySqlCommand(query, connection))
                 {
@@ -899,7 +951,7 @@ namespace ShopEase_Backend
                             order.TotalPrice = Convert.ToDecimal(reader["total_price"]);
                             order.PaymentMethod = reader["payment_method"].ToString();
                             order.Status = reader["status"].ToString();
-                            order.CourierTrackingId = reader["courier_tracking_id"]?.ToString();
+                            order.CourierTrackingId = reader["tracking_number"]?.ToString();
 
                             orders.Add(order);
                         }
@@ -910,22 +962,364 @@ namespace ShopEase_Backend
             return orders;
         }
 
-        //public void addToCart(string email, string product, int count)
-        //{
-        //    string ConnectionString = "Connection String";
-        //    using (SqlConnection connection = new SqlConnection(ConnectionString))
-        //    {
-        //        string query = "INSERT INTO Cart (Email, Product, count) VALUES (@Email , @product, @count )";
-        //        using (SqlCommand command = new SqlCommand(query, connection))
-        //        {
-        //            command.Parameters.AddWithValue("@Email", email);
-        //            command.Parameters.AddWithValue("@Product", product);
-        //            command.Parameters.AddWithValue("@count", count);
-        //            connection.Open();
-        //            command.ExecuteNonQuery();
-        //        }
-        //    }
-        //}
+        public string DispatchOrder(int orderId, string trackingNumber, string status)
+        {
+            string connectionString = "server=localhost;uid=root;pwd=password;database=Shopease;";
+
+            try
+            {
+                using (MySqlConnection conn = new MySqlConnection(connectionString))
+                {
+                    conn.Open();
+
+                    string query = @"
+                    UPDATE Orders
+                    SET 
+                    status = @status,
+                    tracking_number = @trackingNumber
+                    WHERE 
+                    order_id = @orderId AND status = 'Processing';
+            ";
+
+                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@orderId", orderId);
+                        cmd.Parameters.AddWithValue("@trackingNumber", trackingNumber);
+                        cmd.Parameters.AddWithValue("@status", status);
+
+                        int rowsAffected = cmd.ExecuteNonQuery();
+
+                        if (rowsAffected > 0)
+                        {
+                            return "Success";
+                        }
+                        else
+                        {
+                            return "Order not found or not in Processing state";
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                return "Error: " + ex.Message;
+            }
+        }
+
+        public List<Product> GetProductsForReview(int buyerId)
+        {
+            string connectionString = "server=localhost;uid=root;pwd=password;database=Shopease;";
+            List<Product> products = new List<Product>();
+
+            try
+            {
+                using (MySqlConnection conn = new MySqlConnection(connectionString))
+                {
+                    conn.Open();
+                    string query = @"
+                SELECT p.product_id, p.name, p.description
+                FROM products p
+                INNER JOIN order_items oi ON p.product_id = oi.product_id
+                INNER JOIN orders o ON o.order_id = oi.order_id
+                WHERE o.buyer_id = @buyerId";
+
+                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@buyerId", buyerId);
+
+                        using (MySqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                Product product = new Product
+                                {
+                                    ProductId = reader.GetInt32("product_id"),
+                                    Name = reader.GetString("name"),
+                                    Description = reader.GetString("description")
+                                };
+                                products.Add(product);
+                            }
+                        }
+                    }
+                }
+            }
+            catch (MySqlException ex)
+            {
+                // You can log error
+            }
+            catch (Exception ex)
+            {
+                // You can log error
+            }
+
+            return products;
+        }
+
+        public string AddReview(int buyerId, int productId, int rating, string comment)
+        {
+            string connectionString = "server=localhost;uid=root;pwd=password;database=Shopease;";
+
+            try
+            {
+                using (MySqlConnection conn = new MySqlConnection(connectionString))
+                {
+                    conn.Open();
+                    string query = @"
+                INSERT INTO reviews (product_id, buyer_id, rating, comment) 
+                VALUES (@productId, @buyerId, @rating, @comment)";
+
+                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@productId", productId);
+                        cmd.Parameters.AddWithValue("@buyerId", buyerId);
+                        cmd.Parameters.AddWithValue("@rating", rating);
+                        cmd.Parameters.AddWithValue("@comment", comment);
+
+                        int result = cmd.ExecuteNonQuery();
+
+                        if (result > 0)
+                        {
+                            return "Success";
+                        }
+                        else
+                        {
+                            return "Failed to add review.";
+                        }
+                    }
+                }
+            }
+            catch (MySqlException ex)
+            {
+                return $"SQL Error: {ex.Message}";
+            }
+            catch (Exception ex)
+            {
+                return $"Error: {ex.Message}";
+            }
+        }
+
+        public List<Review> GetBuyerReviews(int buyerId)
+        {
+            List<Review> reviews = new List<Review>();
+            string connectionString = "server=localhost;uid=root;pwd=password;database=Shopease;";
+
+            try
+            {
+                using (MySqlConnection conn = new MySqlConnection(connectionString))
+                {
+                    conn.Open();
+                    string query = @"
+                SELECT r.review_id, r.product_id, p.name AS product_name, r.rating, r.comment
+                FROM reviews r
+                INNER JOIN products p ON r.product_id = p.product_id
+                WHERE r.buyer_id = @buyerId";
+
+                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@buyerId", buyerId);
+
+                        using (MySqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                Review review = new Review
+                                {
+                                    ReviewId = reader.GetInt32("review_id"),
+                                    ProductId = reader.GetInt32("product_id"),
+                                    ProductName = reader.GetString("product_name"),
+                                    Rating = reader.GetInt32("rating"),
+                                    Comment = reader.GetString("comment")
+                                };
+
+                                reviews.Add(review);
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Optionally handle/log exception
+            }
+
+            return reviews;
+        }
+
+        public string EditReview(int reviewId, int newRating, string newComment)
+        {
+            string connectionString = "server=localhost;uid=root;pwd=password;database=Shopease;";
+
+            try
+            {
+                using (MySqlConnection conn = new MySqlConnection(connectionString))
+                {
+                    conn.Open();
+                    string query = "UPDATE reviews SET rating = @rating, comment = @comment WHERE review_id = @reviewId";
+
+                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@rating", newRating);
+                        cmd.Parameters.AddWithValue("@comment", newComment);
+                        cmd.Parameters.AddWithValue("@reviewId", reviewId);
+
+                        int rowsAffected = cmd.ExecuteNonQuery();
+
+                        if (rowsAffected > 0)
+                        {
+                            return "Success";
+                        }
+                        else
+                        {
+                            return "Failed to update review.";
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                return $"Error: {ex.Message}";
+            }
+        }
+
+        public string DeleteReview(int reviewId)
+        {
+            string connectionString = "server=localhost;uid=root;pwd=password;database=Shopease;";
+
+            try
+            {
+                using (MySqlConnection conn = new MySqlConnection(connectionString))
+                {
+                    conn.Open();
+                    string query = "DELETE FROM reviews WHERE review_id = @reviewId";
+
+                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@reviewId", reviewId);
+
+                        int rowsAffected = cmd.ExecuteNonQuery();
+
+                        if (rowsAffected > 0)
+                        {
+                            return "Success";
+                        }
+                        else
+                        {
+                            return "Failed to delete review.";
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                return $"Error: {ex.Message}";
+            }
+        }
+        public List<Review> GetSellerProductReviews(int sellerId)
+        {
+            string connectionString = "server=localhost;uid=root;pwd=password;database=Shopease;";
+            List<Review> reviewsList = new List<Review>();
+
+            try
+            {
+                using (MySqlConnection conn = new MySqlConnection(connectionString))
+                {
+                    conn.Open();
+                    string query = @"
+                SELECT 
+                    p.product_id, 
+                    p.name, 
+                    AVG(r.rating) AS average_rating,
+                    GROUP_CONCAT(r.comment SEPARATOR '; ') AS comments
+                FROM 
+                    products p
+                INNER JOIN 
+                    reviews r ON p.product_id = r.product_id
+                WHERE 
+                    p.seller_id = @sellerId
+                GROUP BY 
+                    p.product_id, p.name";
+
+                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@sellerId", sellerId);
+
+                        using (MySqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                Review review = new Review
+                                {
+                                    ProductId = reader.GetInt32("product_id"),
+                                    ProductName = reader.GetString("name"),
+                                    Rating = Convert.ToInt32(Math.Round(reader.GetDouble("average_rating"))),  // Round to nearest integer
+                                    Comment = reader.IsDBNull(reader.GetOrdinal("comments")) ? "" : reader.GetString("comments")
+                                };
+
+                                reviewsList.Add(review);
+                            }
+                        }
+                    }
+                }
+
+                return reviewsList;
+            }
+            catch (Exception ex)
+            {
+                // Optionally log or throw the error, or return an empty list
+                return new List<Review>();
+            }
+        }
+
+        public List<Review> GetReviews()
+        {
+            string connectionString = "server=localhost;uid=root;pwd=password;database=Shopease;";
+            List<Review> reviewsList = new List<Review>();
+
+            try
+            {
+                using (MySqlConnection conn = new MySqlConnection(connectionString))
+                {
+                    conn.Open();
+                    string query = @"
+                SELECT 
+                    r.review_id,
+                    r.product_id,
+                    p.name,
+                    r.rating,
+                    r.comment
+                FROM 
+                    reviews r
+                INNER JOIN 
+                    products p ON r.product_id = p.product_id";
+
+                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
+                    {
+                        using (MySqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                Review review = new Review
+                                {
+                                    ProductId = reader.GetInt32("product_id"),
+                                    ProductName = reader.GetString("name"),
+                                    Rating = reader.GetInt32("rating"),
+                                    Comment = reader.IsDBNull(reader.GetOrdinal("comment")) ? "" : reader.GetString("comment")
+                                };
+
+                                reviewsList.Add(review);
+                            }
+                        }
+                    }
+                }
+
+                return reviewsList;
+            }
+            catch (Exception ex)
+            {
+                return new List<Review>();
+            }
+        }
+
 
         public string GetData(int value)
         {
